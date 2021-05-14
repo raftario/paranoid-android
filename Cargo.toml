@@ -1,0 +1,39 @@
+[package]
+name = "tracing-android"
+version = "0.1.0"
+authors = ["Raphaël Thériault <self@raftar.io>"]
+edition = "2018"
+description = "Integration layer between tracing and Android logs"
+license = "MIT"
+
+[dependencies]
+ndk-sys = "0.2"
+sharded-slab = "0.1"
+once_cell = "1"
+
+[dependencies.tracing-core]
+git = "https://github.com/tokio-rs/tracing.git"
+branch = "eliza/make-for-metadata"
+features = ["std"]
+default-features = false
+[dependencies.tracing-subscriber]
+git = "https://github.com/tokio-rs/tracing.git"
+branch = "eliza/make-for-metadata"
+features = ["registry", "fmt"]
+default-features = false
+
+[dependencies.tracing]
+git = "https://github.com/tokio-rs/tracing.git"
+branch = "eliza/make-for-metadata"
+optional = true
+features = ["std"]
+default-features = false
+
+[features]
+default = ["reexport", "attributes", "env-filter"]
+reexport = ["tracing"]
+
+json = ["tracing-subscriber/json"]
+
+attributes = ["tracing/attributes"]
+env-filter = ["tracing-subscriber/env-filter", "tracing-subscriber/smallvec"]
