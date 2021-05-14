@@ -1,26 +1,25 @@
 use std::{
-    ffi::CStr,
-    fmt,
+    ffi::{CStr, CString},
     io::{self, Write},
     mem::size_of,
     ptr::null,
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::Arc,
 };
 
+use lazy_static::lazy_static;
 use ndk_sys::{
     __android_log_is_loggable, __android_log_message, __android_log_write,
     __android_log_write_log_message, android_get_device_api_level,
 };
-use once_cell::sync::Lazy;
-use sharded_slab::{pool::RefMut, Clear, Pool};
+use sharded_slab::{pool::RefMut, Pool};
 use tracing_core::Metadata;
 use tracing_subscriber::fmt::MakeWriter;
 
 use crate::logging::{Buffer, Priority};
 
 pub(crate) struct AndroidLogWriter {
-    tag: PooledCString,
-    message: PooledCStringBuffer,
+    tag: Arc<CString>,
+    message: PooledCString,
 
     priority: Priority,
     buffer: Buffer,
@@ -31,13 +30,13 @@ pub(crate) struct AndroidLogWriter {
 
 #[derive(Debug)]
 pub(crate) struct AndroidLogMakeWriter {
-    tag: PooledCString,
+    tag: Arc<CString>,
     buffer: Buffer,
     supports_api_30: bool,
 }
 
 struct Location {
-    file: PooledCStringBuffer,
+    file: PooledCString,
     line: u32,
 }
 
@@ -101,7 +100,7 @@ impl<'a> MakeWriter<'a> for AndroidLogMakeWriter {
     fn make_writer(&'a self) -> Self::Writer {
         AndroidLogWriter {
             tag: self.tag.clone(),
-            message: PooledCStringBuffer::new(),
+            message: PooledCString::empty(),
 
             buffer: self.buffer,
             priority: Priority::Info,
@@ -116,19 +115,15 @@ impl<'a> MakeWriter<'a> for AndroidLogMakeWriter {
 
         let location = match (meta.file(), meta.line()) {
             (Some(file), Some(line)) => {
-                let mut file_buffer = PooledCStringBuffer::new();
-                file_buffer.write(file.as_bytes());
-                Some(Location {
-                    file: file_buffer,
-                    line,
-                })
+                let file = PooledCString::new(file.as_bytes());
+                Some(Location { file, line })
             }
             _ => None,
         };
 
         AndroidLogWriter {
             tag: self.tag.clone(),
-            message: PooledCStringBuffer::new(),
+            message: PooledCString::empty(),
 
             buffer: self.buffer,
             priority,
@@ -140,17 +135,17 @@ impl<'a> MakeWriter<'a> for AndroidLogMakeWriter {
 }
 
 impl AndroidLogMakeWriter {
-    pub fn new(tag: impl AsRef<[u8]>) -> Self {
+    pub fn new(tag: impl Into<Vec<u8>>) -> Self {
         Self {
-            tag: PooledCString::new(tag),
+            tag: Arc::new(CString::new(tag).unwrap()),
             buffer: Buffer::default(),
             supports_api_30: unsafe { android_get_device_api_level() } >= 30,
         }
     }
 
-    pub fn with_buffer(tag: impl AsRef<[u8]>, buffer: Buffer) -> Self {
+    pub fn with_buffer(tag: impl Into<Vec<u8>>, buffer: Buffer) -> Self {
         Self {
-            tag: PooledCString::new(tag),
+            tag: Arc::new(CString::new(tag).unwrap()),
             buffer,
             supports_api_30: unsafe { android_get_device_api_level() } >= 30,
         }
@@ -158,90 +153,24 @@ impl AndroidLogMakeWriter {
 }
 
 struct PooledCString {
-    key: usize,
-}
-
-#[derive(Default)]
-struct PooledCStringInner {
-    buf: Vec<u8>,
-    refs: AtomicUsize,
-}
-
-struct PooledCStringBuffer {
     buf: RefMut<'static, Vec<u8>>,
 }
 
-static C_STRING_POOL: Lazy<Pool<PooledCStringInner>> = Lazy::new(Pool::new);
-static C_STRING_BUFFER_POOL: Lazy<Pool<Vec<u8>>> = Lazy::new(Pool::new);
+lazy_static! {
+    static ref BUFFER_POOL: Pool<Vec<u8>> = Pool::new();
+}
 
 impl PooledCString {
-    fn new(data: impl AsRef<[u8]>) -> Self {
-        let key = C_STRING_POOL
-            .create_with(|PooledCStringInner { refs, buf }| {
-                buf.extend_from_slice(data.as_ref());
-
-                if buf.last().copied() != Some(0) {
-                    buf.push(0);
-                }
-                let _ = CStr::from_bytes_with_nul(buf.as_ref()).unwrap();
-
-                refs.fetch_add(1, Ordering::SeqCst);
-            })
-            .unwrap();
-
-        Self { key }
-    }
-
-    fn as_ptr(&self) -> *const u8 {
-        C_STRING_POOL.get(self.key).unwrap().buf.as_ptr()
-    }
-}
-
-impl Drop for PooledCString {
-    fn drop(&mut self) {
-        let key = self.key;
-        if C_STRING_POOL
-            .get(key)
-            .unwrap()
-            .refs
-            .fetch_sub(1, Ordering::SeqCst)
-            < 1
-        {
-            C_STRING_POOL.clear(key);
-        }
-    }
-}
-
-impl Clone for PooledCString {
-    fn clone(&self) -> Self {
-        let key = self.key;
-        C_STRING_POOL
-            .get(key)
-            .unwrap()
-            .refs
-            .fetch_add(1, Ordering::SeqCst);
-        Self { key }
-    }
-}
-
-impl fmt::Debug for PooledCString {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(C_STRING_POOL.get(self.key).unwrap().buf.as_slice(), f)
-    }
-}
-
-impl Clear for PooledCStringInner {
-    fn clear(&mut self) {
-        self.refs.store(0, Ordering::SeqCst);
-        self.buf.clear();
-    }
-}
-
-impl PooledCStringBuffer {
-    fn new() -> Self {
+    fn empty() -> Self {
         Self {
-            buf: C_STRING_BUFFER_POOL.create().unwrap(),
+            buf: BUFFER_POOL.create().unwrap(),
         }
+    }
+
+    fn new(data: &[u8]) -> Self {
+        let mut this = PooledCString::empty();
+        this.write(data);
+        this
     }
 
     fn write(&mut self, data: &[u8]) {
@@ -259,8 +188,8 @@ impl PooledCStringBuffer {
     }
 }
 
-impl Drop for PooledCStringBuffer {
+impl Drop for PooledCString {
     fn drop(&mut self) {
-        C_STRING_BUFFER_POOL.clear(self.buf.key());
+        BUFFER_POOL.clear(self.buf.key());
     }
 }

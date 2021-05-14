@@ -57,7 +57,7 @@ where
 {
     /// Returns a new [`Subscriber`] with the given tag and the default
     /// configuration.
-    pub fn new(tag: impl AsRef<[u8]>) -> Self {
+    pub fn new(tag: impl Into<Vec<u8>>) -> Self {
         Self {
             fmt: fmt::Subscriber::default()
                 .event_format(Self::default_format())
@@ -68,7 +68,7 @@ where
     /// Returns a new [`Subscriber`] with the given tag and the default
     /// configuration, logging to the provided [`Buffer`]. This is only
     /// effective on Android 11+.
-    pub fn with_buffer(tag: impl AsRef<[u8]>, buffer: Buffer) -> Self {
+    pub fn with_buffer(tag: impl Into<Vec<u8>>, buffer: Buffer) -> Self {
         Self {
             fmt: fmt::Subscriber::default()
                 .event_format(Self::default_format())

@@ -41,7 +41,7 @@ pub use self::{
 
 /// Returns a new [`Subscriber`] with the given tag and the default
 /// configuration.
-pub fn subscriber<C>(tag: impl AsRef<[u8]>) -> Subscriber<C>
+pub fn subscriber<C>(tag: impl Into<Vec<u8>>) -> Subscriber<C>
 where
     C: Collect + for<'a> LookupSpan<'a>,
 {
