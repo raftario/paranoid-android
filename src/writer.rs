@@ -145,9 +145,8 @@ impl AndroidLogMakeWriter {
 
     pub fn with_buffer(tag: impl Into<Vec<u8>>, buffer: Buffer) -> Self {
         Self {
-            tag: Arc::new(CString::new(tag).unwrap()),
             buffer,
-            supports_api_30: unsafe { android_get_device_api_level() } >= 30,
+            ..Self::new(tag)
         }
     }
 }
