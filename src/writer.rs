@@ -7,10 +7,6 @@ use std::{
 };
 
 use lazy_static::lazy_static;
-use ndk_sys::{
-    __android_log_is_loggable, __android_log_message, __android_log_write,
-    __android_log_write_log_message, android_get_device_api_level,
-};
 use sharded_slab::{pool::RefMut, Pool};
 use tracing_core::Metadata;
 use tracing_subscriber::fmt::MakeWriter;
@@ -24,15 +20,12 @@ pub(crate) struct AndroidLogWriter {
     priority: Priority,
     buffer: Buffer,
     location: Option<Location>,
-
-    supports_api_30: bool,
 }
 
 #[derive(Debug)]
 pub(crate) struct AndroidLogMakeWriter {
     tag: Arc<CString>,
     buffer: Buffer,
-    supports_api_30: bool,
 }
 
 struct Location {
@@ -55,7 +48,12 @@ impl Write for AndroidLogWriter {
         let tag = self.tag.as_ptr();
         let priority = self.priority.as_raw() as i32;
 
-        if self.supports_api_30 {
+        #[cfg(feature = "api-30")]
+        {
+            use ndk_sys::{
+                __android_log_is_loggable, __android_log_message, __android_log_write_log_message,
+            };
+
             if unsafe { __android_log_is_loggable(priority, tag, priority) } == 0 {
                 return Ok(());
             }
@@ -80,7 +78,12 @@ impl Write for AndroidLogWriter {
             };
 
             unsafe { __android_log_write_log_message(&mut message) };
-        } else {
+        }
+
+        #[cfg(not(feature = "api-30"))]
+        {
+            use ndk_sys::__android_log_write;
+
             unsafe { __android_log_write(priority, tag, message) };
         }
 
@@ -105,8 +108,6 @@ impl<'a> MakeWriter<'a> for AndroidLogMakeWriter {
             buffer: self.buffer,
             priority: Priority::Info,
             location: None,
-
-            supports_api_30: self.supports_api_30,
         }
     }
 
@@ -128,8 +129,6 @@ impl<'a> MakeWriter<'a> for AndroidLogMakeWriter {
             buffer: self.buffer,
             priority,
             location,
-
-            supports_api_30: self.supports_api_30,
         }
     }
 }
@@ -139,7 +138,6 @@ impl AndroidLogMakeWriter {
         Self {
             tag: Arc::new(CString::new(tag).unwrap()),
             buffer: Buffer::default(),
-            supports_api_30: unsafe { android_get_device_api_level() } >= 30,
         }
     }
 

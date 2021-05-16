@@ -19,6 +19,12 @@
 //!     .with(EnvFilter::from_env(env)) // filter logs based on the contents of an environment variable
 //!     .init(); // register the collector globally and start logging !
 //! ```
+//!
+//! ## Cargo features
+//!
+//! * `api-30`: Enables support for Android API level 30 and source location
+//!   information
+//! * `json`: Enables support for the JSON log format
 
 #![warn(rust_2018_idioms, missing_debug_implementations, missing_docs)]
 

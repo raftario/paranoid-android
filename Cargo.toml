@@ -33,6 +33,7 @@ default-features = false
 default = ["reexport", "attributes", "env-filter"]
 reexport = ["tracing"]
 
+api-30 = []
 json = ["tracing-subscriber/json"]
 
 attributes = ["tracing/attributes"]
