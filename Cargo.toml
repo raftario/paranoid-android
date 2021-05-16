@@ -13,18 +13,18 @@ lazy_static = "1"
 
 [dependencies.tracing-core]
 git = "https://github.com/tokio-rs/tracing.git"
-branch = "eliza/make-for-metadata"
+branch = "master"
 features = ["std"]
 default-features = false
 [dependencies.tracing-subscriber]
 git = "https://github.com/tokio-rs/tracing.git"
-branch = "eliza/make-for-metadata"
+branch = "master"
 features = ["registry", "fmt"]
 default-features = false
 
 [dependencies.tracing]
 git = "https://github.com/tokio-rs/tracing.git"
-branch = "eliza/make-for-metadata"
+branch = "master"
 optional = true
 features = ["std"]
 default-features = false
