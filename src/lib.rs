@@ -39,7 +39,7 @@
 
 #![warn(rust_2018_idioms, missing_debug_implementations, missing_docs)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![doc(html_root_url = "https://raftario.github.io/tracing-android/tracing-android")]
+#![doc(html_root_url = "https://raftario.github.io/tracing-android/tracing_android")]
 
 mod layer;
 mod logging;
