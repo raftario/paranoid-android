@@ -1,23 +1,33 @@
-//! Integration layer between [`tracing`] and Android logs.
+//! Integration layer between `tracing` and Android logs.
+//!
+//! This crate provides a [`MakeWriter`](tracing_subscriber::fmt::MakeWriter)
+//! and a [`Layer`](tracing_subscriber::Layer) suitable for writing Android
+//! logs.
 //!
 //! ## Usage
 //!
 //! ```rust
-//! use tracing_subscriber::fmt::format::FmtSpan;
-//! use tracing_subscriber::filter::EnvFilter;
+//! tracing_android::init(env!("CARGO_PKG_NAME"));
+//! ```
+//!
+//! or in with custom options and combined with other layers
+//!
+//! ```rust
+//! # let other_layer = tracing_android::layer("other");
+//! #
+//! use tracing_subscriber::Registry;
+//! use tracing_subscriber::fmt::FmtSpan;
 //! use tracing_subscriber::prelude::*;
 //!
-//! // Use the crate name as the log tag
-//! let tag = env!("CARGO_PKG_NAME");
+//! let android_layer = tracing_android::layer(env!("CARGO_PKG_NAME"))
+//!     .with_span_events(FmtSpan::CLOSE)
+//!     .with_thread_names(true);
 //!
-//! // Use the uppercased tag followed by `_LOG` as the filtering environment variable
-//! let env = format!("{}_LOG", tag.to_uppercase());
+//! let registry = Registry::default()
+//!     .with(android_layer)
+//!     .with(other_layer);
 //!
-//! let subscriber = tracing_android::subscriber(tag) // Create a new subscriber
-//!     .with_span_events(FmtSpan::CLOSE) // log events indicating the time spent in spans when they are closed
-//!     .collector() // convert the subscriber into a collector to compose it with the wider `tracing` ecosystem
-//!     .with(EnvFilter::from_env(env)) // filter logs based on the contents of an environment variable
-//!     .init(); // register the collector globally and start logging !
+//! # registry.init();
 //! ```
 //!
 //! ## Cargo features
@@ -25,31 +35,46 @@
 //! * `api-30`: Enables support for Android API level 30 and source location
 //!   information
 //! * `json`: Enables support for the JSON log format
+//! * `log`: Enables support for the JSON log format
 
 #![warn(rust_2018_idioms, missing_debug_implementations, missing_docs)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![doc(html_root_url = "https://raftario.github.io/tracing-android/tracing-android")]
 
+mod layer;
 mod logging;
-mod subscriber;
 mod writer;
 
-#[cfg(feature = "reexport")]
-pub use tracing;
-#[cfg(feature = "reexport")]
-pub use tracing_subscriber;
-
-use tracing_core::Collect;
-use tracing_subscriber::registry::LookupSpan;
+use tracing_subscriber::registry;
 
 pub use self::{
+    layer::{Layer, Subscriber},
     logging::Buffer,
-    subscriber::{Collector, Subscriber},
+    writer::{AndroidLogMakeWriter, AndroidLogWriter},
 };
 
-/// Returns a new [`Subscriber`] with the given tag and the default
-/// configuration.
-pub fn subscriber<C>(tag: impl Into<Vec<u8>>) -> Subscriber<C>
+/// Returns a new [formatting layer](Layer) that can be
+/// [composed](tracing_subscriber::Layer) with other layers to construct a
+/// [`Subscriber`](tracing_core::Subscriber).
+///
+/// This is a shorthand for the equivalent [`Layer::new`] function.
+pub fn layer<S>(tag: impl ToString) -> Layer<S>
 where
-    C: Collect + for<'a> LookupSpan<'a>,
+    S: tracing_core::Subscriber + for<'a> registry::LookupSpan<'a>,
 {
-    Subscriber::new(tag)
+    Layer::new(tag)
+}
+
+/// Creates a [`Subscriber`] with the given tag and attempts to set it as the
+/// [global default subscriber] in the current scope, panicking if this fails.
+///
+/// This is shorthand for
+///
+/// ```rust
+/// tracing_android::layer(tag).init()
+/// ```
+///
+/// [global default subscriber]: https://docs.rs/tracing/0.1/tracing/dispatcher/index.html#setting-the-default-subscriber
+pub fn init(tag: impl ToString) {
+    layer(tag).init();
 }

@@ -5,6 +5,7 @@ authors = ["Raphaël Thériault <self@raftar.io>"]
 edition = "2018"
 description = "Integration layer between tracing and Android logs"
 license = "MIT"
+repository = "https://github.com/raftario/tracing-android"
 
 [dependencies]
 ndk-sys = "0.2"
@@ -12,29 +13,26 @@ sharded-slab = "0.1"
 lazy_static = "1"
 
 [dependencies.tracing-core]
-git = "https://github.com/tokio-rs/tracing.git"
-branch = "master"
+version = "0.1"
 features = ["std"]
 default-features = false
 [dependencies.tracing-subscriber]
-git = "https://github.com/tokio-rs/tracing.git"
-branch = "master"
+version = "0.2.19"
 features = ["registry", "fmt"]
 default-features = false
 
-[dependencies.tracing]
-git = "https://github.com/tokio-rs/tracing.git"
-branch = "master"
-optional = true
-features = ["std"]
-default-features = false
-
 [features]
-default = ["reexport", "attributes", "env-filter"]
-reexport = ["tracing"]
-
+default = ["log"]
 api-30 = []
 json = ["tracing-subscriber/json"]
+log = ["tracing-subscriber/tracing-log"]
 
-attributes = ["tracing/attributes"]
-env-filter = ["tracing-subscriber/env-filter", "tracing-subscriber/smallvec"]
+[package.metadata.docs.rs]
+all-features = true
+targets = [
+    "aarch64-linux-android",
+    "armv7-linux-androideabi",
+    "i686-linux-android",
+    "x86_64-linux-android",
+]
+rustdoc-args = ["--cfg", "docsrs"]

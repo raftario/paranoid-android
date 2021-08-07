@@ -13,7 +13,9 @@ use tracing_subscriber::fmt::MakeWriter;
 
 use crate::logging::{Buffer, Priority};
 
-pub(crate) struct AndroidLogWriter {
+/// A [`MakeWriter`] suitable for writing Android logs.
+#[derive(Debug)]
+pub struct AndroidLogWriter {
     tag: Arc<CString>,
     message: PooledCString,
 
@@ -22,12 +24,14 @@ pub(crate) struct AndroidLogWriter {
     location: Option<Location>,
 }
 
+/// The writer produced by [`AndroidLogMakeWriter`].
 #[derive(Debug)]
-pub(crate) struct AndroidLogMakeWriter {
+pub struct AndroidLogMakeWriter {
     tag: Arc<CString>,
     buffer: Buffer,
 }
 
+#[derive(Debug)]
 struct Location {
     file: PooledCString,
     line: u32,
@@ -97,10 +101,10 @@ impl Drop for AndroidLogWriter {
     }
 }
 
-impl<'a> MakeWriter<'a> for AndroidLogMakeWriter {
+impl MakeWriter for AndroidLogMakeWriter {
     type Writer = AndroidLogWriter;
 
-    fn make_writer(&'a self) -> Self::Writer {
+    fn make_writer(&self) -> Self::Writer {
         AndroidLogWriter {
             tag: self.tag.clone(),
             message: PooledCString::empty(),
@@ -111,8 +115,8 @@ impl<'a> MakeWriter<'a> for AndroidLogMakeWriter {
         }
     }
 
-    fn make_writer_for(&'a self, meta: &Metadata<'_>) -> Self::Writer {
-        let priority = meta.level().clone().into();
+    fn make_writer_for(&self, meta: &Metadata<'_>) -> Self::Writer {
+        let priority = (*meta.level()).into();
 
         let location = match (meta.file(), meta.line()) {
             (Some(file), Some(line)) => {
@@ -134,14 +138,17 @@ impl<'a> MakeWriter<'a> for AndroidLogMakeWriter {
 }
 
 impl AndroidLogMakeWriter {
-    pub fn new(tag: impl Into<Vec<u8>>) -> Self {
+    /// Returns a new [`AndroidLogWriter`] with the given tag.
+    pub fn new(tag: String) -> Self {
         Self {
             tag: Arc::new(CString::new(tag).unwrap()),
             buffer: Buffer::default(),
         }
     }
 
-    pub fn with_buffer(tag: impl Into<Vec<u8>>, buffer: Buffer) -> Self {
+    /// Returns a new [`AndroidLogMakeWriter`] with the given tag and using the
+    /// given [Android log buffer](Buffer).
+    pub fn with_buffer(tag: String, buffer: Buffer) -> Self {
         Self {
             buffer,
             ..Self::new(tag)
@@ -149,6 +156,7 @@ impl AndroidLogMakeWriter {
     }
 }
 
+#[derive(Debug)]
 struct PooledCString {
     buf: RefMut<'static, Vec<u8>>,
 }
