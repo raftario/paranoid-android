@@ -1,3 +1,5 @@
+#![cfg(target_os = "android")]
+
 //! Integration layer between `tracing` and Android logs.
 //!
 //! This crate provides a [`MakeWriter`](tracing_subscriber::fmt::MakeWriter)

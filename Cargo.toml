@@ -8,10 +8,8 @@ license = "MIT"
 repository = "https://github.com/raftario/tracing-android"
 
 [dependencies]
-ndk-sys = "0.2"
 sharded-slab = "0.1"
 lazy_static = "1"
-
 [dependencies.tracing-core]
 version = "0.1"
 features = ["std"]
@@ -20,6 +18,9 @@ default-features = false
 version = "0.2.19"
 features = ["registry", "fmt"]
 default-features = false
+
+[target.'cfg(target_os = "android")'.dependencies]
+ndk-sys = "0.2"
 
 [features]
 default = ["log"]
