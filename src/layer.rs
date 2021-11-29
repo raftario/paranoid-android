@@ -36,6 +36,12 @@ where
         )
     }
 
+    /// Returns the inner `tracing_suscriber`'s [`Layer`](tracing_subscriber::layer::Layer), in
+    /// case wrapping it into a [`Registry`](registry::Registry) is undesired.
+    pub fn inner(self) -> impl layer::Layer<S> {
+        self.0
+    }
+
     /// Returns a new [`Layer`] with the given tag and using the given [Android
     /// log buffer](Buffer).
     pub fn with_buffer(tag: impl ToString, buffer: Buffer) -> Self {
@@ -98,7 +104,7 @@ where
         Self(inner)
     }
 
-    /// See [`tracing_subscriber` documentation](fmt::Layer::with_target)    
+    /// See [`tracing_subscriber` documentation](fmt::Layer::with_target)
     pub fn with_target(self, display_target: bool) -> Self {
         let Self(inner) = self;
         let inner = inner.with_target(display_target);
