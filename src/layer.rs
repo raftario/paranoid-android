@@ -98,7 +98,7 @@ where
         Self(inner)
     }
 
-    /// See [`tracing_subscriber` documentation](fmt::Layer::with_target)    
+    /// See [`tracing_subscriber` documentation](fmt::Layer::with_target)
     pub fn with_target(self, display_target: bool) -> Self {
         let Self(inner) = self;
         let inner = inner.with_target(display_target);
@@ -170,5 +170,11 @@ impl<S, N, E> Layer<S, N, E> {
         let Self(inner) = self;
         let inner = inner.fmt_fields(fmt_fields);
         Layer(inner)
+    }
+
+    /// Returns the inner `tracing_suscriber`'s [`Layer`](tracing_subscriber::layer::Layer), in
+    /// case wrapping it into a [`Registry`](registry::Registry) is undesired.
+    pub fn inner(self) -> fmt::Layer<S, N, format::Format<E, ()>, AndroidLogMakeWriter> {
+        self.0
     }
 }
