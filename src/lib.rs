@@ -38,8 +38,6 @@
 //! * `api-30`: Enables support for Android API level 30 and source location information
 
 #![warn(rust_2018_idioms, missing_debug_implementations, missing_docs)]
-#![cfg_attr(docsrs, feature(doc_cfg))]
-#![doc(html_root_url = "https://raftario.github.io/tracing-android")]
 
 mod layer;
 mod logging;

@@ -1,24 +1,27 @@
 [package]
-name = "tracing-android"
+name = "paranoid-android"
 version = "0.1.0"
-authors = ["Raphaël Thériault <self@raftar.io>"]
 edition = "2018"
+authors = ["Raphaël Thériault <self@raftar.io>"]
 description = "Integration layer between tracing and Android logs"
-license = "MIT"
 repository = "https://github.com/raftario/tracing-android"
+license = "MIT"
+keywords = ["android", "logcat", "tracing", "logging", "subscriber"]
+categories = [
+    "os",
+    "development-tools::debugging",
+    "development-tools::profiling",
+]
 
 [dependencies]
+tracing-subscriber = { version = "0.3", features = [
+    "fmt",
+    "smallvec",
+], default-features = false }
+tracing-core = { version = "0.1", default-features = false }
 sharded-slab = "0.1"
 lazy_static = "1"
 smallvec = "1"
-[dependencies.tracing-core]
-version = "0.1"
-features = ["std"]
-default-features = false
-[dependencies.tracing-subscriber]
-version = "0.3"
-features = ["fmt", "smallvec"]
-default-features = false
 
 [target.'cfg(target_os = "android")'.dependencies]
 ndk-sys = "0.2"
@@ -34,4 +37,3 @@ targets = [
     "i686-linux-android",
     "x86_64-linux-android",
 ]
-rustdoc-args = ["--cfg", "docsrs"]
