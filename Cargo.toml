@@ -10,23 +10,21 @@ repository = "https://github.com/raftario/tracing-android"
 [dependencies]
 sharded-slab = "0.1"
 lazy_static = "1"
+smallvec = "1"
 [dependencies.tracing-core]
 version = "0.1"
 features = ["std"]
 default-features = false
 [dependencies.tracing-subscriber]
-version = "0.2.19"
-features = ["registry", "fmt"]
+version = "0.3"
+features = ["fmt", "smallvec"]
 default-features = false
 
 [target.'cfg(target_os = "android")'.dependencies]
 ndk-sys = "0.2"
 
 [features]
-default = ["log"]
 api-30 = []
-json = ["tracing-subscriber/json"]
-log = ["tracing-subscriber/tracing-log"]
 
 [package.metadata.docs.rs]
 all-features = true

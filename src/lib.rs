@@ -2,9 +2,10 @@
 
 //! Integration layer between `tracing` and Android logs.
 //!
-//! This crate provides a [`MakeWriter`](tracing_subscriber::fmt::MakeWriter)
-//! and a [`Layer`](tracing_subscriber::Layer) suitable for writing Android
-//! logs.
+//! This crate provides a [`MakeWriter`](tracing_subscriber::fmt::MakeWriter) suitable for writing Android logs.
+//!
+//! It is designed as an integration with the [`fmt`](tracing_subscriber::fmt) subscriber from `tracing-subscriber`
+//! and as such inherits all of its features and customization options.
 //!
 //! ## Usage
 //!
@@ -12,32 +13,29 @@
 //! tracing_android::init(env!("CARGO_PKG_NAME"));
 //! ```
 //!
-//! or in with custom options and combined with other layers
+//! or with custom options and combined with other layers
 //!
 //! ```rust
 //! # let other_layer = tracing_android::layer("other");
 //! #
-//! use tracing_subscriber::Registry;
+//! use tracing_subscriber::filter::LevelFilter;
 //! use tracing_subscriber::fmt::FmtSpan;
 //! use tracing_subscriber::prelude::*;
 //!
 //! let android_layer = tracing_android::layer(env!("CARGO_PKG_NAME"))
 //!     .with_span_events(FmtSpan::CLOSE)
-//!     .with_thread_names(true);
+//!     .with_thread_names(true)
+//!     .with_filter(LevelFilter::DEBUG);
 //!
-//! let registry = Registry::default()
+//! tracing_subcriber::registry()
 //!     .with(android_layer)
-//!     .with(other_layer);
-//!
-//! # registry.init();
+//!     .with(other_layer)
+//!     .init();
 //! ```
 //!
 //! ## Cargo features
 //!
-//! * `api-30`: Enables support for Android API level 30 and source location
-//!   information
-//! * `json`: Enables support for the JSON log format
-//! * `log`: Enables support for the JSON log format
+//! * `api-30`: Enables support for Android API level 30 and source location information
 
 #![warn(rust_2018_idioms, missing_debug_implementations, missing_docs)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -47,36 +45,18 @@ mod layer;
 mod logging;
 mod writer;
 
-use tracing_subscriber::registry;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry};
 
 pub use self::{
-    layer::{Layer, Subscriber},
+    layer::{layer, with_buffer, Layer},
     logging::Buffer,
     writer::{AndroidLogMakeWriter, AndroidLogWriter},
 };
 
-/// Returns a new [formatting layer](Layer) that can be
-/// [composed](tracing_subscriber::Layer) with other layers to construct a
-/// [`Subscriber`](tracing_core::Subscriber).
-///
-/// This is a shorthand for the equivalent [`Layer::new`] function.
-pub fn layer<S>(tag: impl ToString) -> Layer<S>
-where
-    S: tracing_core::Subscriber + for<'a> registry::LookupSpan<'a>,
-{
-    Layer::new(tag)
-}
-
-/// Creates a [`Subscriber`] with the given tag and attempts to set it as the
-/// [global default subscriber] in the current scope, panicking if this fails.
-///
-/// This is shorthand for
-///
-/// ```rust
-/// tracing_android::layer(tag).init()
-/// ```
+/// Creates a [`Subscriber`](tracing_core::Subscriber) with the given tag
+/// and attempts to set it as the [global default subscriber] in the current scope, panicking if this fails.
 ///
 /// [global default subscriber]: https://docs.rs/tracing/0.1/tracing/dispatcher/index.html#setting-the-default-subscriber
 pub fn init(tag: impl ToString) {
-    layer(tag).init();
+    Registry::default().with(layer(tag)).init();
 }

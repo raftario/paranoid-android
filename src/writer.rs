@@ -1,22 +1,23 @@
+use core::slice;
 use std::{
     ffi::{CStr, CString},
     io::{self, Write},
     mem::size_of,
     ptr::null,
-    sync::Arc,
 };
 
 use lazy_static::lazy_static;
 use sharded_slab::{pool::RefMut, Pool};
+use smallvec::SmallVec;
 use tracing_core::Metadata;
 use tracing_subscriber::fmt::MakeWriter;
 
 use crate::logging::{Buffer, Priority};
 
-/// A [`MakeWriter`] suitable for writing Android logs.
+/// The writer produced by [`AndroidLogMakeWriter`].
 #[derive(Debug)]
-pub struct AndroidLogWriter {
-    tag: Arc<CString>,
+pub struct AndroidLogWriter<'a> {
+    tag: &'a CStr,
     message: PooledCString,
 
     priority: Priority,
@@ -24,10 +25,10 @@ pub struct AndroidLogWriter {
     location: Option<Location>,
 }
 
-/// The writer produced by [`AndroidLogMakeWriter`].
+/// A [`MakeWriter`] suitable for writing Android logs.
 #[derive(Debug)]
 pub struct AndroidLogMakeWriter {
-    tag: Arc<CString>,
+    tag: CString,
     buffer: Buffer,
 }
 
@@ -37,17 +38,29 @@ struct Location {
     line: u32,
 }
 
-impl Write for AndroidLogWriter {
+// logd truncates logs at 4096 bytes, so we chunk at 4000 to be conservative
+const MAX_LOG_LEN: usize = 4000;
+
+impl Write for AndroidLogWriter<'_> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.message.write(buf);
         Ok(buf.len())
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        let message = match self.message.as_ptr() {
-            Some(m) => m,
-            _ => return Ok(()),
-        };
+        let mut sv = SmallVec::<[PooledCString; 4]>::new();
+        let messages = if self.message.as_bytes().len() < MAX_LOG_LEN {
+            MessageIter::Single(Some(&mut self.message))
+        } else {
+            sv.extend(
+                self.message
+                    .as_bytes()
+                    .chunks(MAX_LOG_LEN)
+                    .map(PooledCString::new),
+            );
+            MessageIter::Multi(sv.as_mut().iter_mut())
+        }
+        .filter_map(PooledCString::as_ptr);
 
         let tag = self.tag.as_ptr();
         let priority = self.priority.as_raw() as i32;
@@ -71,42 +84,46 @@ impl Write for AndroidLogWriter {
                 None => (null(), 0),
             };
 
-            let mut message = __android_log_message {
-                struct_size: size_of::<__android_log_message>() as u64,
-                buffer_id: buffer as i32,
-                priority,
-                tag,
-                file,
-                line,
-                message,
-            };
+            for message in messages {
+                let mut message = __android_log_message {
+                    struct_size: size_of::<__android_log_message>() as u64,
+                    buffer_id: buffer as i32,
+                    priority,
+                    tag,
+                    file,
+                    line,
+                    message,
+                };
 
-            unsafe { __android_log_write_log_message(&mut message) };
+                unsafe { __android_log_write_log_message(&mut message) };
+            }
         }
 
         #[cfg(not(feature = "api-30"))]
         {
             use ndk_sys::__android_log_write;
 
-            unsafe { __android_log_write(priority, tag, message) };
+            for message in messages {
+                unsafe { __android_log_write(priority, tag, message) };
+            }
         }
 
         Ok(())
     }
 }
 
-impl Drop for AndroidLogWriter {
+impl Drop for AndroidLogWriter<'_> {
     fn drop(&mut self) {
         self.flush().unwrap();
     }
 }
 
-impl MakeWriter for AndroidLogMakeWriter {
-    type Writer = AndroidLogWriter;
+impl<'a> MakeWriter<'a> for AndroidLogMakeWriter {
+    type Writer = AndroidLogWriter<'a>;
 
-    fn make_writer(&self) -> Self::Writer {
+    fn make_writer(&'a self) -> Self::Writer {
         AndroidLogWriter {
-            tag: self.tag.clone(),
+            tag: self.tag.as_c_str(),
             message: PooledCString::empty(),
 
             buffer: self.buffer,
@@ -115,7 +132,7 @@ impl MakeWriter for AndroidLogMakeWriter {
         }
     }
 
-    fn make_writer_for(&self, meta: &Metadata<'_>) -> Self::Writer {
+    fn make_writer_for(&'a self, meta: &Metadata<'_>) -> Self::Writer {
         let priority = (*meta.level()).into();
 
         let location = match (meta.file(), meta.line()) {
@@ -127,7 +144,7 @@ impl MakeWriter for AndroidLogMakeWriter {
         };
 
         AndroidLogWriter {
-            tag: self.tag.clone(),
+            tag: self.tag.as_c_str(),
             message: PooledCString::empty(),
 
             buffer: self.buffer,
@@ -141,7 +158,7 @@ impl AndroidLogMakeWriter {
     /// Returns a new [`AndroidLogWriter`] with the given tag.
     pub fn new(tag: String) -> Self {
         Self {
-            tag: Arc::new(CString::new(tag).unwrap()),
+            tag: CString::new(tag).unwrap(),
             buffer: Buffer::default(),
         }
     }
@@ -159,6 +176,11 @@ impl AndroidLogMakeWriter {
 #[derive(Debug)]
 struct PooledCString {
     buf: RefMut<'static, Vec<u8>>,
+}
+
+enum MessageIter<'a> {
+    Single(Option<&'a mut PooledCString>),
+    Multi(slice::IterMut<'a, PooledCString>),
 }
 
 lazy_static! {
@@ -191,10 +213,33 @@ impl PooledCString {
             .ok()
             .map(CStr::as_ptr)
     }
+
+    fn as_bytes(&self) -> &[u8] {
+        self.buf.as_ref()
+    }
 }
 
 impl Drop for PooledCString {
     fn drop(&mut self) {
         BUFFER_POOL.clear(self.buf.key());
+    }
+}
+
+impl<'a> Iterator for MessageIter<'a> {
+    type Item = &'a mut PooledCString;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            MessageIter::Single(message) => message.take(),
+            MessageIter::Multi(iter) => iter.next(),
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self {
+            MessageIter::Single(Some(_)) => (1, Some(1)),
+            MessageIter::Single(None) => (0, Some(0)),
+            MessageIter::Multi(iter) => iter.size_hint(),
+        }
     }
 }
