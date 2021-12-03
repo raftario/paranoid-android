@@ -10,19 +10,19 @@
 //! ## Usage
 //!
 //! ```rust
-//! tracing_android::init(env!("CARGO_PKG_NAME"));
+//! paranoid_android::init(env!("CARGO_PKG_NAME"));
 //! ```
 //!
 //! or with custom options and combined with other layers
 //!
 //! ```rust
-//! # let other_layer = tracing_android::layer("other");
+//! # let other_layer = paranoid_android::layer("other");
 //! #
 //! use tracing_subscriber::filter::LevelFilter;
 //! use tracing_subscriber::fmt::FmtSpan;
 //! use tracing_subscriber::prelude::*;
 //!
-//! let android_layer = tracing_android::layer(env!("CARGO_PKG_NAME"))
+//! let android_layer = paranoid_android::layer(env!("CARGO_PKG_NAME"))
 //!     .with_span_events(FmtSpan::CLOSE)
 //!     .with_thread_names(true)
 //!     .with_filter(LevelFilter::DEBUG);
