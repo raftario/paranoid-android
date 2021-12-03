@@ -71,19 +71,19 @@
 <span class="doccomment">//! ## Usage</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! ```rust</span>
-<span class="doccomment">//! tracing_android::init(env!(&quot;CARGO_PKG_NAME&quot;));</span>
+<span class="doccomment">//! paranoid_android::init(env!(&quot;CARGO_PKG_NAME&quot;));</span>
 <span class="doccomment">//! ```</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! or with custom options and combined with other layers</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! ```rust</span>
-<span class="doccomment">//! # let other_layer = tracing_android::layer(&quot;other&quot;);</span>
+<span class="doccomment">//! # let other_layer = paranoid_android::layer(&quot;other&quot;);</span>
 <span class="doccomment">//! #</span>
 <span class="doccomment">//! use tracing_subscriber::filter::LevelFilter;</span>
 <span class="doccomment">//! use tracing_subscriber::fmt::FmtSpan;</span>
 <span class="doccomment">//! use tracing_subscriber::prelude::*;</span>
 <span class="doccomment">//!</span>
-<span class="doccomment">//! let android_layer = tracing_android::layer(env!(&quot;CARGO_PKG_NAME&quot;))</span>
+<span class="doccomment">//! let android_layer = paranoid_android::layer(env!(&quot;CARGO_PKG_NAME&quot;))</span>
 <span class="doccomment">//!     .with_span_events(FmtSpan::CLOSE)</span>
 <span class="doccomment">//!     .with_thread_names(true)</span>
 <span class="doccomment">//!     .with_filter(LevelFilter::DEBUG);</span>
