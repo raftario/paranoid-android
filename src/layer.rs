@@ -20,9 +20,7 @@ where
     S: Subscriber,
     for<'a> S: LookupSpan<'a>,
 {
-    fmt::Layer::new()
-        .event_format(default_format())
-        .with_writer(AndroidLogMakeWriter::new(tag.to_string()))
+    with_buffer(tag, Default::default())
 }
 
 /// Returns a new [formatting layer](Layer) with the given tag and using the given [Android log buffer](Buffer),
@@ -33,10 +31,6 @@ where
     for<'a> S: LookupSpan<'a>,
 {
     fmt::Layer::new()
-        .event_format(default_format())
+        .event_format(Format::default().with_level(false).without_time())
         .with_writer(AndroidLogMakeWriter::with_buffer(tag.to_string(), buffer))
-}
-
-fn default_format() -> Format<format::Full, ()> {
-    Format::default().with_level(false).without_time()
 }

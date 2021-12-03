@@ -2,8 +2,6 @@ use core::slice;
 use std::{
     ffi::{CStr, CString},
     io::{self, Write},
-    mem::size_of,
-    ptr::null,
 };
 
 use lazy_static::lazy_static;
@@ -62,11 +60,14 @@ impl Write for AndroidLogWriter<'_> {
         }
         .filter_map(PooledCString::as_ptr);
 
-        let tag = self.tag.as_ptr();
+        let buffer = self.buffer.as_raw() as i32;
         let priority = self.priority.as_raw() as i32;
+        let tag = self.tag.as_ptr();
 
         #[cfg(feature = "api-30")]
         {
+            use std::{mem::size_of, ptr::null};
+
             use ndk_sys::{
                 __android_log_is_loggable, __android_log_message, __android_log_write_log_message,
             };
@@ -75,7 +76,6 @@ impl Write for AndroidLogWriter<'_> {
                 return Ok(());
             }
 
-            let buffer = self.buffer.as_raw();
             let (file, line) = match &mut self.location {
                 Some(Location { file, line }) => match file.as_ptr() {
                     Some(ptr) => (ptr, *line),
@@ -87,7 +87,7 @@ impl Write for AndroidLogWriter<'_> {
             for message in messages {
                 let mut message = __android_log_message {
                     struct_size: size_of::<__android_log_message>() as u64,
-                    buffer_id: buffer as i32,
+                    buffer_id: buffer,
                     priority,
                     tag,
                     file,
@@ -101,10 +101,10 @@ impl Write for AndroidLogWriter<'_> {
 
         #[cfg(not(feature = "api-30"))]
         {
-            use ndk_sys::__android_log_write;
+            use ndk_sys::__android_log_buf_write;
 
             for message in messages {
-                unsafe { __android_log_write(priority, tag, message) };
+                unsafe { __android_log_buf_write(buffer, priority, tag, message) };
             }
         }
 
@@ -157,18 +157,15 @@ impl<'a> MakeWriter<'a> for AndroidLogMakeWriter {
 impl AndroidLogMakeWriter {
     /// Returns a new [`AndroidLogWriter`] with the given tag.
     pub fn new(tag: String) -> Self {
-        Self {
-            tag: CString::new(tag).unwrap(),
-            buffer: Buffer::default(),
-        }
+        Self::with_buffer(tag, Default::default())
     }
 
     /// Returns a new [`AndroidLogMakeWriter`] with the given tag and using the
     /// given [Android log buffer](Buffer).
     pub fn with_buffer(tag: String, buffer: Buffer) -> Self {
         Self {
+            tag: CString::new(tag).unwrap(),
             buffer,
-            ..Self::new(tag)
         }
     }
 }
