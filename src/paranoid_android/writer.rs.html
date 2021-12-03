@@ -241,15 +241,10 @@
 <span id="240">240</span>
 <span id="241">241</span>
 <span id="242">242</span>
-<span id="243">243</span>
-<span id="244">244</span>
-<span id="245">245</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">core::slice</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{
     <span class="ident">ffi</span>::{<span class="ident">CStr</span>, <span class="ident">CString</span>},
     <span class="ident">io</span>::{<span class="self">self</span>, <span class="ident">Write</span>},
-    <span class="ident">mem::size_of</span>,
-    <span class="ident">ptr::null</span>,
 };
 
 <span class="kw">use</span> <span class="ident">lazy_static::lazy_static</span>;
@@ -308,11 +303,14 @@
         }
         .<span class="ident">filter_map</span>(<span class="ident">PooledCString::as_ptr</span>);
 
-        <span class="kw">let</span> <span class="ident">tag</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">tag</span>.<span class="ident">as_ptr</span>();
+        <span class="kw">let</span> <span class="ident">buffer</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">buffer</span>.<span class="ident">as_raw</span>() <span class="kw">as</span> <span class="ident">i32</span>;
         <span class="kw">let</span> <span class="ident">priority</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">priority</span>.<span class="ident">as_raw</span>() <span class="kw">as</span> <span class="ident">i32</span>;
+        <span class="kw">let</span> <span class="ident">tag</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">tag</span>.<span class="ident">as_ptr</span>();
 
         <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;api-30&quot;</span>)]</span>
         {
+            <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">mem::size_of</span>, <span class="ident">ptr::null</span>};
+
             <span class="kw">use</span> <span class="ident">ndk_sys</span>::{
                 <span class="ident">__android_log_is_loggable</span>, <span class="ident">__android_log_message</span>, <span class="ident">__android_log_write_log_message</span>,
             };
@@ -321,7 +319,6 @@
                 <span class="kw">return</span> <span class="prelude-val">Ok</span>(());
             }
 
-            <span class="kw">let</span> <span class="ident">buffer</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">buffer</span>.<span class="ident">as_raw</span>();
             <span class="kw">let</span> (<span class="ident">file</span>, <span class="ident">line</span>) <span class="op">=</span> <span class="kw">match</span> <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">location</span> {
                 <span class="prelude-val">Some</span>(<span class="ident">Location</span> { <span class="ident">file</span>, <span class="ident">line</span> }) =&gt; <span class="kw">match</span> <span class="ident">file</span>.<span class="ident">as_ptr</span>() {
                     <span class="prelude-val">Some</span>(<span class="ident">ptr</span>) =&gt; (<span class="ident">ptr</span>, <span class="kw-2">*</span><span class="ident">line</span>),
@@ -333,7 +330,7 @@
             <span class="kw">for</span> <span class="ident">message</span> <span class="kw">in</span> <span class="ident">messages</span> {
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">__android_log_message</span> {
                     <span class="ident">struct_size</span>: <span class="ident">size_of</span>::<span class="op">&lt;</span><span class="ident">__android_log_message</span><span class="op">&gt;</span>() <span class="kw">as</span> <span class="ident">u64</span>,
-                    <span class="ident">buffer_id</span>: <span class="ident">buffer</span> <span class="kw">as</span> <span class="ident">i32</span>,
+                    <span class="ident">buffer_id</span>: <span class="ident">buffer</span>,
                     <span class="ident">priority</span>,
                     <span class="ident">tag</span>,
                     <span class="ident">file</span>,
@@ -347,10 +344,10 @@
 
         <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;api-30&quot;</span>))]</span>
         {
-            <span class="kw">use</span> <span class="ident">ndk_sys::__android_log_write</span>;
+            <span class="kw">use</span> <span class="ident">ndk_sys::__android_log_buf_write</span>;
 
             <span class="kw">for</span> <span class="ident">message</span> <span class="kw">in</span> <span class="ident">messages</span> {
-                <span class="kw">unsafe</span> { <span class="ident">__android_log_write</span>(<span class="ident">priority</span>, <span class="ident">tag</span>, <span class="ident">message</span>) };
+                <span class="kw">unsafe</span> { <span class="ident">__android_log_buf_write</span>(<span class="ident">buffer</span>, <span class="ident">priority</span>, <span class="ident">tag</span>, <span class="ident">message</span>) };
             }
         }
 
@@ -403,18 +400,15 @@
 <span class="kw">impl</span> <span class="ident">AndroidLogMakeWriter</span> {
     <span class="doccomment">/// Returns a new [`AndroidLogWriter`] with the given tag.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">tag</span>: <span class="ident">String</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">Self</span> {
-            <span class="ident">tag</span>: <span class="ident">CString::new</span>(<span class="ident">tag</span>).<span class="ident">unwrap</span>(),
-            <span class="ident">buffer</span>: <span class="ident">Buffer::default</span>(),
-        }
+        <span class="ident"><span class="self">Self</span>::with_buffer</span>(<span class="ident">tag</span>, <span class="ident">Default::default</span>())
     }
 
     <span class="doccomment">/// Returns a new [`AndroidLogMakeWriter`] with the given tag and using the</span>
     <span class="doccomment">/// given [Android log buffer](Buffer).</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_buffer</span>(<span class="ident">tag</span>: <span class="ident">String</span>, <span class="ident">buffer</span>: <span class="ident">Buffer</span>) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
+            <span class="ident">tag</span>: <span class="ident">CString::new</span>(<span class="ident">tag</span>).<span class="ident">unwrap</span>(),
             <span class="ident">buffer</span>,
-            ..<span class="ident"><span class="self">Self</span>::new</span>(<span class="ident">tag</span>)
         }
     }
 }
@@ -490,5 +484,5 @@
     }
 }
 </code></pre></div>
-</section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="paranoid_android" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.59.0-nightly (48a5999fc 2021-12-01)" ></div>
+</section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="paranoid_android" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.59.0-nightly (acbe4443c 2021-12-02)" ></div>
 </body></html>

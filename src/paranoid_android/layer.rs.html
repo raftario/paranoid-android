@@ -35,12 +35,6 @@
 <span id="34">34</span>
 <span id="35">35</span>
 <span id="36">36</span>
-<span id="37">37</span>
-<span id="38">38</span>
-<span id="39">39</span>
-<span id="40">40</span>
-<span id="41">41</span>
-<span id="42">42</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">tracing_core::Subscriber</span>;
 <span class="kw">use</span> <span class="ident">tracing_subscriber</span>::{
     <span class="ident">fmt</span>::{
@@ -63,9 +57,7 @@
     <span class="ident">S</span>: <span class="ident">Subscriber</span>,
     <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">S</span>: <span class="ident">LookupSpan</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>,
 {
-    <span class="ident">fmt::Layer::new</span>()
-        .<span class="ident">event_format</span>(<span class="ident">default_format</span>())
-        .<span class="ident">with_writer</span>(<span class="ident">AndroidLogMakeWriter::new</span>(<span class="ident">tag</span>.<span class="ident">to_string</span>()))
+    <span class="ident">with_buffer</span>(<span class="ident">tag</span>, <span class="ident">Default::default</span>())
 }
 
 <span class="doccomment">/// Returns a new [formatting layer](Layer) with the given tag and using the given [Android log buffer](Buffer),</span>
@@ -76,13 +68,9 @@
     <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">S</span>: <span class="ident">LookupSpan</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>,
 {
     <span class="ident">fmt::Layer::new</span>()
-        .<span class="ident">event_format</span>(<span class="ident">default_format</span>())
+        .<span class="ident">event_format</span>(<span class="ident">Format::default</span>().<span class="ident">with_level</span>(<span class="bool-val">false</span>).<span class="ident">without_time</span>())
         .<span class="ident">with_writer</span>(<span class="ident">AndroidLogMakeWriter::with_buffer</span>(<span class="ident">tag</span>.<span class="ident">to_string</span>(), <span class="ident">buffer</span>))
 }
-
-<span class="kw">fn</span> <span class="ident">default_format</span>() -&gt; <span class="ident">Format</span><span class="op">&lt;</span><span class="ident">format::Full</span>, ()<span class="op">&gt;</span> {
-    <span class="ident">Format::default</span>().<span class="ident">with_level</span>(<span class="bool-val">false</span>).<span class="ident">without_time</span>()
-}
 </code></pre></div>
-</section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="paranoid_android" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.59.0-nightly (48a5999fc 2021-12-01)" ></div>
+</section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="paranoid_android" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.59.0-nightly (acbe4443c 2021-12-02)" ></div>
 </body></html>
