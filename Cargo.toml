@@ -1,6 +1,6 @@
 [package]
 name = "paranoid-android"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2018"
 authors = ["Raphaël Thériault <self@raftar.io>"]
 description = "Integration layer between tracing and Android logs"
