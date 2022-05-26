@@ -2,6 +2,7 @@ use core::slice;
 use std::{
     ffi::{CStr, CString},
     io::{self, Write},
+    os::raw::c_char,
 };
 
 use lazy_static::lazy_static;
@@ -201,7 +202,7 @@ impl PooledCString {
         self.buf.extend_from_slice(data);
     }
 
-    fn as_ptr(&mut self) -> Option<*const u8> {
+    fn as_ptr(&mut self) -> Option<*const c_char> {
         if self.buf.last().copied() != Some(0) {
             self.buf.push(0);
         }
