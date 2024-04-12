@@ -61,8 +61,8 @@ impl Write for AndroidLogWriter<'_> {
         }
         .filter_map(PooledCString::as_ptr);
 
-        let buffer = self.buffer.as_raw() as i32;
-        let priority = self.priority.as_raw() as i32;
+        let buffer = self.buffer.as_raw().0 as i32;
+        let priority = self.priority.as_raw().0 as i32;
         let tag = self.tag.as_ptr();
 
         #[cfg(feature = "api-30")]
@@ -87,7 +87,7 @@ impl Write for AndroidLogWriter<'_> {
 
             for message in messages {
                 let mut message = __android_log_message {
-                    struct_size: size_of::<__android_log_message>() as u64,
+                    struct_size: size_of::<__android_log_message>(),
                     buffer_id: buffer,
                     priority,
                     tag,

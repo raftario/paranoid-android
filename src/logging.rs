@@ -1,22 +1,15 @@
-use ndk_sys::{
-    android_LogPriority, android_LogPriority_ANDROID_LOG_DEBUG,
-    android_LogPriority_ANDROID_LOG_ERROR, android_LogPriority_ANDROID_LOG_FATAL,
-    android_LogPriority_ANDROID_LOG_INFO, android_LogPriority_ANDROID_LOG_VERBOSE,
-    android_LogPriority_ANDROID_LOG_WARN, log_id, log_id_LOG_ID_CRASH, log_id_LOG_ID_DEFAULT,
-    log_id_LOG_ID_EVENTS, log_id_LOG_ID_KERNEL, log_id_LOG_ID_MAIN, log_id_LOG_ID_RADIO,
-    log_id_LOG_ID_SECURITY, log_id_LOG_ID_STATS, log_id_LOG_ID_SYSTEM,
-};
+use ndk_sys::{android_LogPriority, log_id};
 use tracing_core::Level;
 
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Priority {
-    Verbose = android_LogPriority_ANDROID_LOG_VERBOSE,
-    Debug = android_LogPriority_ANDROID_LOG_DEBUG,
-    Info = android_LogPriority_ANDROID_LOG_INFO,
-    Warn = android_LogPriority_ANDROID_LOG_WARN,
-    Error = android_LogPriority_ANDROID_LOG_ERROR,
-    Fatal = android_LogPriority_ANDROID_LOG_FATAL,
+    Verbose = android_LogPriority::ANDROID_LOG_VERBOSE.0,
+    Debug = android_LogPriority::ANDROID_LOG_DEBUG.0,
+    Info = android_LogPriority::ANDROID_LOG_INFO.0,
+    Warn = android_LogPriority::ANDROID_LOG_WARN.0,
+    Error = android_LogPriority::ANDROID_LOG_ERROR.0,
+    Fatal = android_LogPriority::ANDROID_LOG_FATAL.0,
 }
 
 /// An [Android log buffer](https://developer.android.com/ndk/reference/group/logging#log_id).
@@ -24,32 +17,32 @@ pub enum Priority {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Buffer {
     /// Let the logging function choose the best log target.
-    Default = log_id_LOG_ID_DEFAULT,
+    Default = log_id::LOG_ID_DEFAULT.0,
 
     /// The main log buffer.
     ///
     /// This is the only log buffer available to apps.
-    Main = log_id_LOG_ID_MAIN,
+    Main = log_id::LOG_ID_MAIN.0,
 
     /// The crash log buffer.
-    Crash = log_id_LOG_ID_CRASH,
+    Crash = log_id::LOG_ID_CRASH.0,
     /// The statistics log buffer.
-    Stats = log_id_LOG_ID_STATS,
+    Stats = log_id::LOG_ID_STATS.0,
     /// The event log buffer.
-    Events = log_id_LOG_ID_EVENTS,
+    Events = log_id::LOG_ID_EVENTS.0,
     /// The security log buffer.
-    Security = log_id_LOG_ID_SECURITY,
+    Security = log_id::LOG_ID_SECURITY.0,
     /// The system log buffer.
-    System = log_id_LOG_ID_SYSTEM,
+    System = log_id::LOG_ID_SYSTEM.0,
     /// The kernel log buffer.
-    Kernel = log_id_LOG_ID_KERNEL,
+    Kernel = log_id::LOG_ID_KERNEL.0,
     /// The radio log buffer.
-    Radio = log_id_LOG_ID_RADIO,
+    Radio = log_id::LOG_ID_RADIO.0,
 }
 
 impl Priority {
     pub fn as_raw(self) -> android_LogPriority {
-        self as u32
+        android_LogPriority(self as u32)
     }
 }
 
@@ -79,7 +72,7 @@ impl From<Priority> for Level {
 
 impl Buffer {
     pub(crate) fn as_raw(self) -> log_id {
-        self as u32
+        log_id(self as u32)
     }
 }
 
